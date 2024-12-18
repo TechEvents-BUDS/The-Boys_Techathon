@@ -5,11 +5,13 @@ const fs = require('fs');
 const path = require('path');
 const axios = require("axios");
 const dotenv = require("dotenv");
+const cors = require("cors")
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+app.use(cors())
+const PORT = 5000;
 
 // Gemini API key
 const apiKey = process.env.GEMINI_KEY;
@@ -18,6 +20,10 @@ const apiKey = process.env.GEMINI_KEY;
 const upload = multer({
     dest: 'uploads/', // Destination folder for uploaded files
 });
+
+app.get("/test", (req, res) => {
+    res.send("Test")
+})
 
 async function geminiRes(columns) {
     const { GoogleGenerativeAI } = require("@google/generative-ai");
