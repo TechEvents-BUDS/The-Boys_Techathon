@@ -19,16 +19,49 @@ const upload = multer({
     dest: 'uploads/', // Destination folder for uploaded files
 });
 
-async function geminiRes(columsn) {
+async function geminiRes(columns) {
     const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-const prompt = "Dont write code. Only give json data return. You are a data science expert. You will be given a list of column names and are required to identify the most suitable charts for insights. Return an array of JSON objects, each containing two fields: 'columns', listing the relevant column names for visualization, and 'chart', specifying the appropriate chart type (e.g., 'bar', 'line', 'scatter'). Ensure your suggestions are concise and relevant to common data visualization practices.";
+    const prompt = `Don't write code. Only give JSON data return. You are a data science expert. You will be given a list of column names and are required to identify the most suitable charts for insights. Return an array of JSON objects, each containing two fields: 'columns', listing the relevant column names for visualization, and 'chart', specifying the appropriate chart type (e.g., 'bar', 'line', 'scatter'). Ensure your suggestions are concise and relevant to common data visualization practices. Columns: ${columns}`;
 
-const result = await model.generateContent(prompt);
-return result
+    const result = await model.generateContent(prompt);
+    return result;
+}
+
+function extractJsonObjects(input) {
+    console.log(input)
+    // Ensure input is in the correct format
+    let inputString;
+
+    if (typeof input === 'string') {
+        inputString = input; // Input is already a string
+    } else if (typeof input === 'object' && input.text) {
+        inputString = input.text; // Extract the text property from the object
+    } else {
+        console.error("Invalid input: Expected a string or an object with a text property.");
+        return null;
+    }
+
+    // Extract the JSON string enclosed in triple backticks and parse it
+    const jsonRegex = /```json\n([\s\S]*?)\n```/;
+    const match = inputString.match(jsonRegex);
+
+    if (match && match[1]) {
+        try {
+            // Parse the JSON string to an object
+            const jsonObjects = JSON.parse(match[1]);
+            return jsonObjects;
+        } catch (error) {
+            console.error("Failed to parse JSON:", error);
+            return null;
+        }
+    } else {
+        console.error("No JSON found in the input string.");
+        return null;
+    }
 }
 
 // Route to upload CSV file and get column names
@@ -54,13 +87,13 @@ app.post('/upload', upload.single('file'), (req, res) => {
 
             try {
                 // Pass the column names to Gemini
-                const prompt = `Here are the column names: ${columnNames.join(", ")}. Suggest visualizations for them.`;
                 const result = await geminiRes(columnNames.join(", "));
-                console.log(result.response.candidates[0].content.parts
-                )
+                const data = extractJsonObjects(result.response.candidates[0].content.parts[0].text);
+
+                console.log(data);
 
                 // Send the result back to the client
-                res.json({ visualizationSuggestions: JSON.parse(result.response.candidates[0]) });
+                res.json({ visualizationSuggestions: data });
             } catch (error) {
                 console.error("Error processing Gemini response:", error.message);
                 res.status(500).json({ error: 'Error processing Gemini response', details: error.message });
