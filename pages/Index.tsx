@@ -30,6 +30,7 @@ export default function Home() {
     Papa.parse(uploadedFile, {
       complete: async (result: any) => { // Type 'result' explicitly
         setUploadProgress(50); // Simulated progress
+        console.log(result)
         const response = await axios.post('/api/process-file', { data: result.data });
         setEdaResults(response.data.eda);
         setPredictionResults(response.data.predictions);
